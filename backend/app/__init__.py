@@ -376,7 +376,7 @@ def init_database(app):
         if not admin_user:
             try:
                 admin_user = User(
-                    username='admin',
+                    username=app.config.get("ADMIN_USERNAME"),
                     email=admin_email,
                     password_hash=AuthService.hash_password(app.config.get("ADMIN_PASSWORD", "admin123")),
                     is_verified=True,

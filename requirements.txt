@@ -1,0 +1,77 @@
+# Core Flask dependencies
+Flask
+Flask-SQLAlchemy
+Flask-JWT-Extended
+Flask-CORS
+Flask-Limiter
+Flask-Caching
+
+# Database and ORM
+SQLAlchemy
+alembic
+
+# Security and authentication
+bcrypt
+PyJWT
+cryptography
+
+# Input validation and serialization
+marshmallow
+marshmallow-sqlalchemy
+email-validator
+
+# HTTP requests and API utilities
+requests
+urllib3
+
+# Date and time utilities
+python-dateutil
+
+# Environment configuration
+python-dotenv
+
+# Redis for rate limiting and caching
+redis
+hiredis
+
+# URL parsing and validation
+validators
+
+# User agent parsing
+user-agents
+
+# QR code generation
+qrcode[pil]
+Pillow
+
+# Geographic IP lookup
+geoip2
+maxminddb
+
+# Logging and monitoring
+structlog
+
+# Production server
+gunicorn
+
+# Additional utilities
+click
+Werkzeug
+Jinja2
+MarkupSafe
+itsdangerous
+blinker
+typing-extensions
+greenlet
+six
+packaging
+certifi
+charset-normalizer
+idna
+
+# Development tools
+pytest
+pytest-flask
+black
+flake8
+coverage

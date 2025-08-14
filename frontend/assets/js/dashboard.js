@@ -763,7 +763,7 @@ class Dashboard {
                             <h4 class="text-sm font-medium text-gray-500 mb-2">Short URL</h4>
                             <div class="flex items-center space-x-2">
                                 <code class="text-lg font-mono bg-gray-100 px-3 py-2 rounded">${window.location.origin}/${link.short_code}</code>
-                                <button onclick="dashboard.copyToClipboard('${window.location.origin}/${link.short_code}')" 
+                                <button onclick="dashboard.copyToClipboard('https://knps.dev/${link.short_code}')" 
                                         class="btn-secondary">Copy</button>
                             </div>
                         </div>

@@ -240,6 +240,14 @@ class Dashboard {
                 console.warn('Links data is not an array, resetting to empty array');
                 this.links = [];
             }
+            
+            // Make sure stats object has correct counts based on actual links data
+            if (!this.stats) this.stats = {};
+            if (this.links.length > 0) {
+                // Override stats with actual data if links are available
+                this.stats.total_urls = this.links.length;
+                this.stats.total_clicks = this.links.reduce((sum, link) => sum + (link.click_count || 0), 0);
+            }
 
             this.updateStatsDisplay();
             this.updateLinksTable();
@@ -494,25 +502,45 @@ class Dashboard {
         const clickRate = document.getElementById('clickRate');
         const activeLinks = document.getElementById('activeLinks');
 
+        // Make sure we have accurate link count
+        const linksCount = this.links.length;
+        const activeLinksCount = this.links.filter(link => !link.is_disabled).length;
+        const totalClicksCount = this.links.reduce((sum, link) => sum + (link.click_count || 0), 0);
+
+        // Always use the actual links count, only fall back to stats if no links are loaded
         if (totalLinks) {
-            totalLinks.textContent = this.stats.total_urls || '0';
+            if (linksCount > 0 || !this.stats.total_urls) {
+                totalLinks.textContent = linksCount.toString();
+            } else {
+                totalLinks.textContent = this.stats.total_urls || '0';
+            }
         }
 
         if (totalClicks) {
-            totalClicks.textContent = this.stats.total_clicks || '0';
+            if (totalClicksCount > 0 || !this.stats.total_clicks) {
+                totalClicks.textContent = totalClicksCount.toString();
+            } else {
+                totalClicks.textContent = this.stats.total_clicks || '0';
+            }
         }
 
         if (clickRate) {
-            const rate = this.stats.total_urls > 0 
-                ? ((this.stats.total_clicks / this.stats.total_urls)).toFixed(1)
-                : '0';
+            let rate = '0';
+            if (linksCount > 0 && totalClicksCount > 0) {
+                rate = (totalClicksCount / linksCount).toFixed(1);
+            } else if (this.stats.total_urls > 0 && this.stats.total_clicks > 0) {
+                rate = (this.stats.total_clicks / this.stats.total_urls).toFixed(1);
+            }
             clickRate.textContent = `${rate}/link`;
         }
 
         if (activeLinks) {
-            const active = this.links.filter(link => !link.is_disabled).length;
-            activeLinks.textContent = active.toString();
+            activeLinks.textContent = activeLinksCount.toString();
         }
+        
+        // Update stats object to ensure consistency
+        this.stats.total_urls = linksCount;
+        this.stats.total_clicks = totalClicksCount;
     }
 
     updateLinksTable() {
@@ -540,8 +568,10 @@ class Dashboard {
             <tr class="hover:bg-gray-50 cursor-pointer" onclick="dashboard.showLinkDetails('${link.id}')">
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="text-sm font-medium text-gray-900">${link.short_code}</div>
-                        <button onclick="event.stopPropagation(); dashboard.copyToClipboard('${window.location.origin}/${link.short_code}')" 
+                        <div class="text-sm font-medium text-gray-900 truncate max-w-xs" title="https://knps.dev/${link.short_code}">
+                            https://knps.dev/${link.short_code}
+                        </div>
+                        <button onclick="event.stopPropagation(); dashboard.copyToClipboard('https://knps.dev/${link.short_code}')" 
                                 class="ml-2 text-gray-400 hover:text-gray-600">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
@@ -705,6 +735,12 @@ class Dashboard {
                 console.warn('Unexpected response format when loading links:', response);
             }
             
+            // Update stats based on links data
+            if (!this.stats) this.stats = {};
+            this.stats.total_urls = this.links.length;
+            this.stats.total_clicks = this.links.reduce((sum, link) => sum + (link.click_count || 0), 0);
+            
+            this.updateStatsDisplay();
             this.updateLinksTable();
         } catch (error) {
             console.error('Failed to load links:', error);
@@ -795,6 +831,9 @@ class Dashboard {
             const response = await this.apiClient.request(`/api/v1/urls/${linkId}`);
             const link = response.url;
             
+            // Construct full URL
+            const fullUrl = `https://knps.dev/${link.short_code}`;
+            
             const modal = document.getElementById('linkDetailsModal');
             const content = document.getElementById('linkDetailsContent');
             
@@ -804,8 +843,8 @@ class Dashboard {
                         <div>
                             <h4 class="text-sm font-medium text-gray-500 mb-2">Short URL</h4>
                             <div class="flex items-center space-x-2">
-                                <code class="text-lg font-mono bg-gray-100 px-3 py-2 rounded">https://knps.dev/${link.short_code}</code>
-                                <button onclick="dashboard.copyToClipboard('https://knps.dev/${link.short_code}')" 
+                                <code class="text-lg font-mono bg-gray-100 px-3 py-2 rounded overflow-x-auto">${fullUrl}</code>
+                                <button onclick="dashboard.copyToClipboard('${fullUrl}')" 
                                         class="btn-secondary">Copy</button>
                             </div>
                         </div>

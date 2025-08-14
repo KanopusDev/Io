@@ -234,9 +234,9 @@ class IoApp {
         // Build short URL
         let shortUrl;
         if (urlData.custom_alias) {
-            shortUrl = `${window.location.origin}/${urlData.custom_alias}`;
+            shortUrl = `https://knps.dev/${urlData.custom_alias}`;
         } else {
-            shortUrl = `${window.location.origin}/${urlData.short_code}`;
+            shortUrl = `https://knps.dev/${urlData.short_code}`;
         }
         
         // Display result

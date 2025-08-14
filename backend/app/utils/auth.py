@@ -72,6 +72,7 @@ def api_key_required():
             api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
             
             if not api_key:
+                current_app.logger.warning(f"API key auth failed: No API key provided for endpoint {request.endpoint}")
                 return jsonify({
                     'error': True,
                     'message': 'API key required',
@@ -79,19 +80,29 @@ def api_key_required():
                 }), 401
             
             try:
+                # Log the API key being used (first few characters only for security)
+                current_app.logger.debug(f"API key auth attempt: {api_key[:8]}... for endpoint {request.endpoint}")
+                
                 user = AuthService.get_user_by_api_key(api_key)
                 g.current_user = user
                 g.current_user_id = user.id
+                g.auth_method = 'api_key'
+                
+                current_app.logger.info(f"API key auth success: User {user.username} authenticated for endpoint {request.endpoint}")
                 
                 return func(*args, **kwargs)
                 
             except Exception as e:
-                current_app.logger.warning(f"API key authentication failed: {e}")
+                current_app.logger.warning(f"API key authentication failed: {e} for endpoint {request.endpoint}")
+                error_message = str(e) if hasattr(e, 'message') else 'Invalid API key'
+                error_code = getattr(e, 'error_code', 'INVALID_API_KEY')
+                status_code = getattr(e, 'status_code', 401)
+                
                 return jsonify({
                     'error': True,
-                    'message': 'Invalid API key',
-                    'error_code': 'INVALID_API_KEY'
-                }), 401
+                    'message': error_message,
+                    'error_code': error_code
+                }), status_code
         
         return wrapper
     return decorator
@@ -342,6 +353,8 @@ def dual_auth_required():
             # Try JWT authentication first
             jwt_auth_success = False
             api_key_auth_success = False
+            jwt_error = None
+            api_key_error = None
             
             # Check for JWT token in Authorization header
             auth_header = request.headers.get('Authorization', '')
@@ -360,31 +373,55 @@ def dual_auth_required():
                             g.current_user_id = int(user_id)
                             g.auth_method = 'jwt'
                             jwt_auth_success = True
+                        else:
+                            jwt_error = "Token has been revoked"
+                    else:
+                        jwt_error = "Invalid token payload"
                 
                 except Exception as e:
+                    jwt_error = str(e)
                     current_app.logger.debug(f"JWT authentication failed: {e}")
             
-            # If JWT failed, try API key authentication
+            # If JWT failed or not provided, try API key authentication
             if not jwt_auth_success:
-                api_key = request.headers.get('X-API-Key')
+                # Get API key from header or query parameter
+                api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
                 
                 if api_key:
                     try:
                         user = AuthService.get_user_by_api_key(api_key)
-                        g.current_user = user
-                        g.current_user_id = user.id
-                        g.auth_method = 'api_key'
-                        api_key_auth_success = True
-                        
+                        # Ensure we found a user
+                        if user:
+                            g.current_user = user
+                            g.current_user_id = user.id
+                            g.auth_method = 'api_key'
+                            api_key_auth_success = True
+                            current_app.logger.debug(f"API key authentication successful for user: {user.username}")
+                        else:
+                            api_key_error = "Invalid API key - no user found"
+                            current_app.logger.warning(f"API key authentication failed: no user found for key")
                     except Exception as e:
+                        api_key_error = str(e)
                         current_app.logger.debug(f"API key authentication failed: {e}")
             
             # If both authentication methods failed
             if not jwt_auth_success and not api_key_auth_success:
+                # Prepare detailed error response
+                error_details = {}
+                if auth_header.startswith('Bearer '):
+                    error_details['jwt_error'] = jwt_error
+                
+                if api_key:
+                    error_details['api_key_error'] = api_key_error
+                
+                if not auth_header.startswith('Bearer ') and not api_key:
+                    error_details['missing_auth'] = "No authentication credentials provided"
+                
                 return jsonify({
                     'error': True,
                     'message': 'Authentication required. Provide either JWT token (Authorization: Bearer <token>) or API key (X-API-Key: <key>)',
-                    'error_code': 'AUTHENTICATION_REQUIRED'
+                    'error_code': 'AUTHENTICATION_REQUIRED',
+                    'details': error_details
                 }), 401
             
             return func(*args, **kwargs)

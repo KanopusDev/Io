@@ -3,7 +3,7 @@ URL management routes for creating, updating, and managing short URLs.
 Implements enterprise-grade URL shortening with analytics and security features.
 """
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from marshmallow import ValidationError as MarshmallowValidationError
 
 from ..services.url_service import URLService
@@ -56,6 +56,16 @@ def create_url():
         409: Custom alias already exists
         429: Rate limit exceeded
     """
+    # Log the authentication method being used
+    auth_method = getattr(g, 'auth_method', 'unknown')
+    current_app.logger.info(f"URL creation attempt using {auth_method} authentication")
+    
+    if auth_method == 'api_key':
+        current_app.logger.info(f"API Key authentication detected for user: {g.current_user.username}")
+    elif auth_method == 'jwt':
+        current_app.logger.info(f"JWT authentication detected for user: {g.current_user.username}")
+    else:
+        current_app.logger.warning(f"Unknown authentication method: {auth_method}")
     try:
         # Validate request data
         data = url_creation_schema.load(request.get_json())

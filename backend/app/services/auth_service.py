@@ -5,7 +5,7 @@ Implements enterprise-grade security practices with bcrypt hashing and JWT token
 
 import bcrypt
 from datetime import datetime, timezone
-from flask import current_app
+from flask import current_app, request
 from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, get_jwt
 from sqlalchemy.exc import IntegrityError
 import uuid
@@ -258,17 +258,29 @@ class AuthService:
     def get_user_by_api_key(api_key):
         """Get user by API key for custom endpoint authentication."""
         if not api_key:
+            current_app.logger.debug("API key auth failed: No API key provided")
             raise AuthenticationError("API key is required")
         
+        current_app.logger.debug(f"Looking up user by API key: {api_key[:8]}...")
         user = User.query.filter_by(api_key=api_key).first()
+        
         if not user:
+            current_app.logger.warning(f"API key auth failed: No user found for key {api_key[:8]}...")
             raise AuthenticationError("Invalid API key")
         
+        current_app.logger.debug(f"Found user {user.username} for API key {api_key[:8]}...")
+        
         if not user.is_active:
+            current_app.logger.warning(f"API key auth failed: User {user.username} is deactivated")
             raise AuthenticationError("User account is deactivated")
         
-        if not user.is_verified:
-            raise AuthorizationError("Custom endpoints are only available for verified users")
+        # For API endpoints that need verified status, this check will be done separately
+        # Don't restrict regular URL creation for unverified users here
+        # The api_key_required decorator is specifically for custom endpoints
+        if request.endpoint and ('custom_' in request.endpoint or request.path.startswith(f'/api/v1/{user.username}/')):
+            if not user.is_verified:
+                current_app.logger.warning(f"API key auth failed: User {user.username} is not verified for custom endpoint")
+                raise AuthorizationError("Custom endpoints are only available for verified users")
         
         return user
     

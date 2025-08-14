@@ -211,8 +211,35 @@ class Dashboard {
                 this.apiClient.request('/api/v1/urls')
             ]);
 
-            this.stats = statsResponse.data;
-            this.links = linksResponse.data.items || [];
+            // Handle different stats response formats
+            if (statsResponse && statsResponse.data) {
+                this.stats = statsResponse.data;
+            } else {
+                this.stats = statsResponse || {};
+                console.warn('Unexpected stats response format:', statsResponse);
+            }
+            
+            // Handle different links response formats
+            if (linksResponse && linksResponse.data && linksResponse.data.items) {
+                this.links = linksResponse.data.items;
+            } else if (linksResponse && linksResponse.data) {
+                this.links = linksResponse.data;
+            } else if (linksResponse && linksResponse.urls) {
+                this.links = linksResponse.urls;
+            } else if (linksResponse && linksResponse.items) {
+                this.links = linksResponse.items;
+            } else if (Array.isArray(linksResponse)) {
+                this.links = linksResponse;
+            } else {
+                this.links = [];
+                console.warn('Unexpected links response format:', linksResponse);
+            }
+            
+            // Ensure links is always an array
+            if (!Array.isArray(this.links)) {
+                console.warn('Links data is not an array, resetting to empty array');
+                this.links = [];
+            }
 
             this.updateStatsDisplay();
             this.updateLinksTable();
@@ -662,7 +689,22 @@ class Dashboard {
     async loadLinks() {
         try {
             const response = await this.apiClient.request('/api/v1/urls');
-            this.links = response.urls || [];
+            // Handle different possible response formats
+            if (response.data && response.data.items) {
+                this.links = response.data.items;
+            } else if (response.data) {
+                this.links = response.data;
+            } else if (response.urls) {
+                this.links = response.urls;
+            } else if (response.items) {
+                this.links = response.items;
+            } else if (Array.isArray(response)) {
+                this.links = response;
+            } else {
+                this.links = [];
+                console.warn('Unexpected response format when loading links:', response);
+            }
+            
             this.updateLinksTable();
         } catch (error) {
             console.error('Failed to load links:', error);
@@ -763,7 +805,7 @@ class Dashboard {
                             <h4 class="text-sm font-medium text-gray-500 mb-2">Short URL</h4>
                             <div class="flex items-center space-x-2">
                                 <code class="text-lg font-mono bg-gray-100 px-3 py-2 rounded">https://knps.dev/${link.short_code}</code>
-                                <button onclick="dashboard.copyToClipboard(link.short_url || 'https://knps.dev/${link.short_code}')" 
+                                <button onclick="dashboard.copyToClipboard('https://knps.dev/${link.short_code}')" 
                                         class="btn-secondary">Copy</button>
                             </div>
                         </div>
